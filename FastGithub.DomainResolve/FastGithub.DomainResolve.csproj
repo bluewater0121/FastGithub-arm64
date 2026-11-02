@@ -1,19 +1,24 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   
 	<ItemGroup>
-		<PackageReference Include="PInvoke.AdvApi32" Version="0.7.124" />
-		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="6.0.1" />
-		<PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
 		<PackageReference Include="DNS" Version="7.0.0" />
 		<PackageReference Include="Tommy" Version="3.1.2" />
 		<ProjectReference Include="..\FastGithub.Configuration\FastGithub.Configuration.csproj" />
 	</ItemGroup>
 
+	<PropertyGroup>
+		<!-- 优先使用与 RID 匹配的原生 dnscrypt-proxy；arm64 等暂无官方二进制时，回退到 win-x64（ARM64 Windows 11 以 x64 模拟运行） -->
+		<DnscryptProxySource Condition="Exists('../@dnscrypt-proxy/$(RuntimeIdentifier)')">../@dnscrypt-proxy/$(RuntimeIdentifier)</DnscryptProxySource>
+		<DnscryptProxySource Condition="'$(DnscryptProxySource)' == ''">../@dnscrypt-proxy/win-x64</DnscryptProxySource>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<None Include="../@dnscrypt-proxy/*" Link="dnscrypt-proxy/%(Filename)%(Extension)">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
-		<None Include="../@dnscrypt-proxy/$(RuntimeIdentifier)/*" Link="dnscrypt-proxy/%(Filename)%(Extension)">
+		<None Include="$(DnscryptProxySource)/*" Link="dnscrypt-proxy/%(Filename)%(Extension)">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

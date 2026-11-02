@@ -39,15 +39,21 @@ namespace FastGithub.UI
         /// <param name="sender"></param>
         /// <param name="args"></param>
         /// <returns></returns>
-        private static Assembly? OnAssemblyResolve(object sender, ResolveEventArgs args)
+        private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args)
         {
             var name = new AssemblyName(args.Name).Name;
             if (name.EndsWith(".resources"))
             {
-                return default;
+                return null;
             }
 
-            var stream = Application.GetResourceStream(new Uri($"Resource/{name}.dll", UriKind.Relative)).Stream;
+            var info = Application.GetResourceStream(new Uri($"Resource/{name}.dll", UriKind.Relative));
+            if (info == null)
+            {
+                return null;
+            }
+
+            using var stream = info.Stream;
             var buffer = new byte[stream.Length];
             stream.Read(buffer, 0, buffer.Length);
             return Assembly.Load(buffer);

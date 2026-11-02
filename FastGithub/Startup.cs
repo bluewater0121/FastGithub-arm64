@@ -28,7 +28,12 @@ namespace FastGithub
         /// <param name="builder"></param>
         public static void ConfigureHost(this WebApplicationBuilder builder)
         {
-            builder.Host.UseSystemd().UseWindowsService();
+            // 注意：不要在此调用 UseWindowsService()。
+            // Microsoft.Extensions.Hosting.Windows 的服务宿主在「单文件发布」下会通过反射查找
+            // Assembly.GetEntryAssembly().EntryPoint，而单文件打包后该入口点为 null，
+            // 导致服务被 SCM 拉起时抛 "Entry point was not found"。
+            // Windows 服务的 SCM 集成改由 Program.Main 中的自建 ServiceBase 宿主接管（见 FastGithubService）。
+            builder.Host.UseSystemd();
             builder.Host.UseSerilog((hosting, logger) =>
             {
                 var template = "{Timestamp:O} [{Level:u3}]{NewLine}{SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}";
@@ -53,17 +58,8 @@ namespace FastGithub
             builder.WebHost.UseKestrel(kestrel =>
             {
                 kestrel.NoLimit();
-                if (OperatingSystem.IsWindows())
-                {
-                    kestrel.ListenHttpsReverseProxy();
-                    kestrel.ListenHttpReverseProxy();
-                    kestrel.ListenSshReverseProxy();
-                    kestrel.ListenGitReverseProxy();
-                }
-                else
-                {
-                    kestrel.ListenHttpProxy();
-                }
+                // 显式 http 代理模式：跨平台一致，不依赖 WinDivert 内核驱动
+                kestrel.ListenHttpProxy();
             });
         }
 
@@ -105,11 +101,6 @@ namespace FastGithub
             services.AddReverseProxy();
             services.AddFlowAnalyze();
             services.AddHostedService<AppHostedService>();
-
-            if (OperatingSystem.IsWindows())
-            {
-                services.AddPacketIntercept();
-            }
         }
 
         /// <summary>

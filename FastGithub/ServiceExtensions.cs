@@ -3,8 +3,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using PInvoke;
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -32,16 +32,6 @@ namespace FastGithub
         [SupportedOSPlatform("linux")]
         [DllImport("libc", SetLastError = true)]
         private static extern uint geteuid();
-
-        /// <summary>
-        /// 使用windows服务
-        /// </summary>
-        /// <param name="hostBuilder"></param> 
-        /// <returns></returns>
-        public static IHostBuilder UseWindowsService(this IHostBuilder hostBuilder)
-        {
-            return WindowsServiceLifetimeHostBuilderExtensions.UseWindowsService(hostBuilder);
-        }
 
         /// <summary>
         /// 运行主机
@@ -111,19 +101,13 @@ namespace FastGithub
         {
             var binaryPath = Environment.GetCommandLineArgs().First();
             var serviceName = Path.GetFileNameWithoutExtension(binaryPath);
-            var state = true;
             if (cmd == Command.Start)
             {
-                state = ServiceInstallUtil.InstallAndStartService(serviceName, binaryPath);
+                ServiceInstallUtil.InstallAndStartService(serviceName, binaryPath);
             }
             else if (cmd == Command.Stop)
             {
-                state = ServiceInstallUtil.StopAndDeleteService(serviceName);
-            }
-
-            if (state == false)
-            {
-                throw new Win32Exception();
+                ServiceInstallUtil.StopAndDeleteService(serviceName);
             }
         }
 

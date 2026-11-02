@@ -7,7 +7,6 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using static PInvoke.AdvApi32;
 
 namespace FastGithub.DomainResolve
 {
@@ -44,8 +43,11 @@ namespace FastGithub.DomainResolve
             this.logger = logger;
             this.processName = NAME;
             this.serviceName = $"{nameof(FastGithub)}.{NAME}";
-            this.exeFilePath = Path.Combine(PATH, OperatingSystem.IsWindows() ? $"{NAME}.exe" : NAME);
-            this.tomlFilePath = Path.Combine(PATH, $"{NAME}.toml");
+
+            // 基于当前进程所在目录解析，避免以 Windows 服务方式运行时工作目录为 System32 而找不到文件
+            var baseDirectory = Path.GetDirectoryName(Environment.ProcessPath) ?? Environment.CurrentDirectory;
+            this.exeFilePath = Path.Combine(baseDirectory, PATH, OperatingSystem.IsWindows() ? $"{NAME}.exe" : NAME);
+            this.tomlFilePath = Path.Combine(baseDirectory, PATH, $"{NAME}.toml");
         }
 
         /// <summary>

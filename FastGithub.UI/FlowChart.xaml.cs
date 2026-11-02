@@ -1,11 +1,13 @@
-﻿using LiveCharts;
-using LiveCharts.Configurations;
-using LiveCharts.Wpf;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace FastGithub.UI
 {
@@ -14,41 +16,34 @@ namespace FastGithub.UI
     /// </summary>
     public partial class FlowChart : UserControl
     {
-        private readonly LineSeries readSeries = new LineSeries
+        private readonly IList<RateTick> readValues = new List<RateTick>();
+
+        private readonly IList<RateTick> writeValues = new List<RateTick>();
+
+        private readonly Polyline readPolyline = new Polyline
         {
-            Title = "上行速率",
-            PointGeometry = null,
-            LineSmoothness = 1D,
-            Values = new ChartValues<RateTick>()
+            Stroke = new SolidColorBrush(Colors.DodgerBlue),
+            StrokeThickness = 1.5
         };
 
-        private readonly LineSeries writeSeries = new LineSeries()
+        private readonly Polyline writePolyline = new Polyline
         {
-            Title = "下行速率",
-            PointGeometry = null,
-            LineSmoothness = 1D,
-            Values = new ChartValues<RateTick>()
+            Stroke = new SolidColorBrush(Colors.IndianRed),
+            StrokeThickness = 1.5
         };
 
         private static DateTime GetDateTime(double timestamp) => new DateTime(1970, 1, 1).Add(TimeSpan.FromMilliseconds(timestamp)).ToLocalTime();
 
         private static double GetTimestamp(DateTime dateTime) => dateTime.ToUniversalTime().Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds;
 
-
-        public SeriesCollection Series { get; } = new SeriesCollection(Mappers.Xy<RateTick>().X(item => item.Timestamp).Y(item => item.Rate));
-
-        public Func<double, string> XFormatter { get; } = timestamp => GetDateTime(timestamp).ToString("HH:mm:ss");
-
-        public Func<double, string> YFormatter { get; } = value => $"{FlowStatistics.ToNetworkSizeString((long)value)}/s";
-
         public FlowChart()
         {
             InitializeComponent();
 
-            this.Series.Add(this.readSeries);
-            this.Series.Add(this.writeSeries);
+            this.chartCanvas.Children.Add(this.readPolyline);
+            this.chartCanvas.Children.Add(this.writePolyline);
+            this.chartCanvas.SizeChanged += (s, e) => this.Redraw();
 
-            this.DataContext = this;
             this.InitFlowChartAsync();
         }
 
@@ -85,13 +80,38 @@ namespace FastGithub.UI
             this.textBlockWrite.Text = FlowStatistics.ToNetworkSizeString(flowStatistics.TotalWrite);
 
             var timestamp = GetTimestamp(DateTime.Now);
-            this.readSeries.Values.Add(new RateTick(flowStatistics.ReadRate, timestamp));
-            this.writeSeries.Values.Add(new RateTick(flowStatistics.WriteRate, timestamp));
+            this.readValues.Add(new RateTick(flowStatistics.ReadRate, timestamp));
+            this.writeValues.Add(new RateTick(flowStatistics.WriteRate, timestamp));
 
-            if (this.readSeries.Values.Count > 60)
+            if (this.readValues.Count > 60)
             {
-                this.readSeries.Values.RemoveAt(0);
-                this.writeSeries.Values.RemoveAt(0);
+                this.readValues.RemoveAt(0);
+                this.writeValues.RemoveAt(0);
+            }
+
+            this.Redraw();
+        }
+
+        private void Redraw()
+        {
+            var width = this.chartCanvas.ActualWidth;
+            var height = this.chartCanvas.ActualHeight;
+            this.readPolyline.Points.Clear();
+            this.writePolyline.Points.Clear();
+            if (width <= 0 || height <= 0 || this.readValues.Count == 0)
+            {
+                return;
+            }
+
+            var maxRate = Math.Max(1d, Math.Max(this.readValues.Max(t => t.Rate), this.writeValues.Max(t => t.Rate)) * 1.1);
+            var count = this.readValues.Count;
+            for (var i = 0; i < count; i++)
+            {
+                var x = count == 1 ? 0 : (double)i / (count - 1) * width;
+                var yRead = height - (this.readValues[i].Rate / maxRate) * height;
+                var yWrite = height - (this.writeValues[i].Rate / maxRate) * height;
+                this.readPolyline.Points.Add(new Point(x, yRead));
+                this.writePolyline.Points.Add(new Point(x, yWrite));
             }
         }
 
@@ -107,6 +127,5 @@ namespace FastGithub.UI
                 this.Timestamp = timestamp;
             }
         }
-
     }
 }

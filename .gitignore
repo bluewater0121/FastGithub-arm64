@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# WorkBuddy local project data (memory / working notes) — not source
+.workbuddy/
